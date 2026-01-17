@@ -1,4 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useNotification } from '@/contexts/NotificationContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useMutation } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { Plus, Home, Users, DollarSign, TrendingUp } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
@@ -30,7 +35,57 @@ const OwnerDashboard = () => {
   const createProperty = useCreateProperty();
   const updateProperty = useUpdateProperty();
   const deleteProperty = useDeleteProperty();
-  const updateRequest = useUpdateRequestStatus();
+  const { addNotification } = useNotification();
+  const queryClient = useQueryClient();
+  
+  // Custom mutation for updating request status with notifications
+  const updateRequest = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: 'approved' | 'rejected' }) => {
+      const { data, error } = await supabase
+        .from('rental_requests')
+        .update({ status })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: async (data) => {
+      // Invalidate queries
+      await queryClient.invalidateQueries({ queryKey: ['owner-requests'] });
+      await queryClient.invalidateQueries({ queryKey: ['tenant-requests'] });
+      
+      // Get the tenant profile to send notification
+      const { data: tenantProfile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('user_id', data.tenant_id)
+        .single();
+      
+      // Get the property details
+      const { data: property } = await supabase
+        .from('properties')
+        .select('title')
+        .eq('id', data.property_id)
+        .single();
+      
+      // Add notification for the tenant
+      addNotification({
+        title: `Rental Request ${data.status.charAt(0).toUpperCase() + data.status.slice(1)}!`,
+        message: `Your request for ${property?.title || 'the property'} has been ${data.status}.`,
+        type: data.status === 'approved' ? 'success' : 'warning',
+        userId: data.tenant_id,
+        actionUrl: `/tenant/dashboard`
+      });
+      
+      toast.success(`Request ${data.status}!`);
+    },
+    onError: (error) => {
+      toast.error('Failed to update request: ' + error.message);
+    },
+  });
+  
   const { uploading, uploadedUrls, uploadImages, removeImage, clearImages } = useImageUpload();
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -130,6 +185,74 @@ const OwnerDashboard = () => {
 
   const pendingRequests = requests?.filter(r => r.status === 'pending') || [];
   const totalRevenue = payments?.filter(p => p.status === 'completed').reduce((acc, p) => acc + Number(p.amount), 0) || 0;
+  
+  // Set up real-time subscription for rental requests when component mounts
+  useEffect(() => {
+    if (!user) return;
+    
+    // Subscribe to rental_requests table for this owner
+    const channel = supabase
+      .channel('rental-requests-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'rental_requests',
+          filter: `owner_id=eq.${user.id}`,
+        },
+        (payload) => {
+          // Add notification when a new rental request is received
+          addNotification({
+            title: 'New Rental Request!',
+            message: `A tenant has requested your property.`,
+            type: 'info',
+            userId: user.id,
+            actionUrl: '/owner/dashboard',
+          });
+        }
+      )
+      .subscribe();
+    
+    // Clean up subscription when component unmounts
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, addNotification]);
+  
+  // Set up real-time subscription for property updates
+  useEffect(() => {
+    if (!user) return;
+    
+    // Subscribe to properties table for this owner
+    const channel = supabase
+      .channel('property-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'properties',
+          filter: `owner_id=eq.${user.id}`,
+        },
+        (payload) => {
+          // Add notification when a property is updated
+          addNotification({
+            title: 'Property Updated!',
+            message: `Your property listing has been updated.`,
+            type: 'info',
+            userId: user.id,
+            actionUrl: '/owner/dashboard',
+          });
+        }
+      )
+      .subscribe();
+    
+    // Clean up subscription when component unmounts
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, addNotification]);
 
   return (
     <Layout>

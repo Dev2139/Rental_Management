@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useNotification } from '@/contexts/NotificationContext';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft,
@@ -42,6 +43,7 @@ const PropertyDetail = () => {
   const { data: property, isLoading } = useProperty(id || '');
   const { user, role } = useAuth();
   const createRequest = useCreateRentalRequest();
+  const { addNotification } = useNotification();
   
   const isOwner = user && user.id === property?.owner_id;
   
@@ -86,11 +88,21 @@ const PropertyDetail = () => {
 
     if (!property) return;
 
+    // Create the rental request
     await createRequest.mutateAsync({
       propertyId: property.id,
       ownerId: property.owner_id,
       message: requestMessage,
       moveInDate: moveInDate || undefined,
+    });
+
+    // Add notification for the tenant
+    addNotification({
+      title: 'Rental Request Sent!',
+      message: `Your request for ${property.title} has been sent to the owner.`,
+      type: 'info',
+      userId: user.id,
+      actionUrl: '/tenant/dashboard',
     });
 
     setIsRequestOpen(false);

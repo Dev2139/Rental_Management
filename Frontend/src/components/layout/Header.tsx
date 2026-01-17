@@ -1,8 +1,9 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Home, Menu, X, LogOut, User, LayoutDashboard } from 'lucide-react';
+import { Home, Menu, X, LogOut, User, LayoutDashboard, Bell } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNotification } from '@/contexts/NotificationContext';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -11,12 +12,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import NotificationBadge from '@/components/ui/notification-badge';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import NotificationDropdown from '@/components/ui/notification-dropdown';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, role, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { unreadCount } = useNotification();
 
   const handleSignOut = async () => {
     await signOut();
@@ -66,27 +75,42 @@ const Header = () => {
           {/* Auth Section */}
           <div className="hidden md:flex items-center gap-4">
             {user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <User className="w-4 h-4" />
-                    <span className="capitalize">{role || 'User'}</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem asChild>
-                    <Link to={getDashboardLink()} className="flex items-center gap-2">
-                      <LayoutDashboard className="w-4 h-4" />
-                      Dashboard
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
-                    <LogOut className="w-4 h-4 mr-2" />
-                    Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="flex items-center gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <div className="relative">
+                      <NotificationBadge 
+                        count={unreadCount} 
+                        variant="ghost"
+                      />
+                    </div>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="p-0 w-auto" sideOffset={10}>
+                    <NotificationDropdown />
+                  </PopoverContent>
+                </Popover>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <User className="w-4 h-4" />
+                      <span className="capitalize">{role || 'User'}</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuItem asChild>
+                      <Link to={getDashboardLink()} className="flex items-center gap-2">
+                        <LayoutDashboard className="w-4 h-4" />
+                        Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             ) : (
               <>
                 <Link to="/auth?mode=login">

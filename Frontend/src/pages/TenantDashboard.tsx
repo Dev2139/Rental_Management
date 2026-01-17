@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Home, Clock, CreditCard, CheckCircle } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTenantRequests } from '@/hooks/useRentalRequests';
+import { useNotification } from '@/contexts/NotificationContext';
+import { supabase } from '@/integrations/supabase/client';
 import { useUserPayments, useCreatePayment } from '@/hooks/usePayments';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +18,7 @@ const TenantDashboard = () => {
   const { data: requests } = useTenantRequests();
   const { data: payments } = useUserPayments();
   const createPayment = useCreatePayment();
+  const { addNotification } = useNotification();
   const [payingRequest, setPayingRequest] = useState<string | null>(null);
 
   if (loading) return <Layout><div className="flex items-center justify-center h-96">Loading...</div></Layout>;
@@ -35,6 +38,43 @@ const TenantDashboard = () => {
   const approvedRequests = requests?.filter(r => r.status === 'approved') || [];
   const pendingRequests = requests?.filter(r => r.status === 'pending') || [];
   const totalPaid = payments?.filter(p => p.status === 'completed').reduce((acc, p) => acc + Number(p.amount), 0) || 0;
+  
+  // Set up real-time subscription for rental request updates
+  useEffect(() => {
+    if (!user) return;
+    
+    // Subscribe to rental_requests table for this tenant
+    const channel = supabase
+      .channel('tenant-request-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'rental_requests',
+          filter: `tenant_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const status = payload.new.status;
+          const requestId = payload.new.id;
+          
+          // Add notification when a rental request status is updated
+          addNotification({
+            title: `Rental Request ${status.charAt(0).toUpperCase() + status.slice(1)}!`,
+            message: `Your rental request has been ${status}.`,
+            type: status === 'approved' ? 'success' : status === 'rejected' ? 'error' : 'info',
+            userId: user.id,
+            actionUrl: '/tenant/dashboard',
+          });
+        }
+      )
+      .subscribe();
+    
+    // Clean up subscription when component unmounts
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, addNotification]);
 
   return (
     <Layout>
