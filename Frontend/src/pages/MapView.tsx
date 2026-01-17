@@ -1,12 +1,13 @@
-import { useState, useCallback, useMemo } from 'react';
-import Map, { Marker, Popup, NavigationControl } from 'react-map-gl';
-import { MapPin, X, ExternalLink } from 'lucide-react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import Map, { Marker, Popup, NavigationControl, ViewStateChangeEvent } from 'react-map-gl';
+import { MapPin, X, ExternalLink, Plus, Minus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import Layout from '@/components/layout/Layout';
 import PropertyCard from '@/components/properties/PropertyCard';
 import { useProperties, Property } from '@/hooks/useProperties';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { createClusterIndex, getClusters, getClusterChildren, isCluster } from '@/utils/mapClustering';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 // Demo Mapbox token - replace with your own for production
@@ -15,11 +16,36 @@ const MAPBOX_TOKEN = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ
 const MapView = () => {
   const { data: properties, isLoading } = useProperties();
   const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+  const [clusterIndex, setClusterIndex] = useState<any>(null);
+  const [clusters, setClusters] = useState<any[]>([]);
   const [viewState, setViewState] = useState({
     latitude: 37.7749,
     longitude: -122.4194,
     zoom: 11,
   });
+
+  // Initialize clustering when properties load
+  useEffect(() => {
+    if (properties && properties.length > 0) {
+      const index = createClusterIndex(properties);
+      setClusterIndex(index);
+    }
+  }, [properties]);
+
+  // Update clusters when view state changes
+  useEffect(() => {
+    if (clusterIndex && properties && properties.length > 0) {
+      const bounds = [
+        viewState.longitude - 360 / Math.pow(2, viewState.zoom), // west
+        viewState.latitude - 180 / Math.pow(2, viewState.zoom),     // south
+        viewState.longitude + 360 / Math.pow(2, viewState.zoom), // east
+        viewState.latitude + 180 / Math.pow(2, viewState.zoom)      // north
+      ];
+      
+      const newClusters = getClusters(clusterIndex, bounds as [number, number, number, number], viewState.zoom);
+      setClusters(newClusters);
+    }
+  }, [clusterIndex, properties, viewState]);
 
   // Calculate bounds based on properties
   const bounds = useMemo(() => {
@@ -117,6 +143,7 @@ const MapView = () => {
           <Map
             {...viewState}
             onMove={(evt) => setViewState(evt.viewState)}
+            onZoom={(evt) => setViewState(evt.viewState)}
             onLoad={handleLoad}
             mapStyle="mapbox://styles/mapbox/light-v11"
             mapboxAccessToken={MAPBOX_TOKEN}
@@ -124,52 +151,92 @@ const MapView = () => {
           >
             <NavigationControl position="top-right" />
 
-            {properties?.map((property) => {
-              const lat = Number(property.latitude);
-              const lng = Number(property.longitude);
-
-              if (isNaN(lat) || isNaN(lng)) return null;
-
-              return (
-                <Marker
-                  key={property.id}
-                  latitude={lat}
-                  longitude={lng}
-                  anchor="bottom"
-                  onClick={(e) => {
-                    e.originalEvent.stopPropagation();
-                    setSelectedProperty(property);
-                  }}
-                >
-                  <div
-                    className={`
-                      cursor-pointer transition-all transform
-                      ${selectedProperty?.id === property.id ? 'scale-125 z-10' : 'hover:scale-110'}
-                    `}
+            {/* Render clusters and individual markers */}
+            {clusters.map((cluster) => {
+              const [longitude, latitude] = cluster.geometry.coordinates;
+              const isACluster = isCluster(cluster);
+              
+              if (isACluster) {
+                // This is a cluster
+                const { cluster_id, point_count } = cluster.properties;
+                
+                return (
+                  <Marker
+                    key={`cluster-${cluster_id}`}
+                    latitude={latitude}
+                    longitude={longitude}
+                    anchor="center"
+                    onClick={(e) => {
+                      e.originalEvent.stopPropagation();
+                      
+                      // Get cluster children to calculate zoom level
+                      if (clusterIndex) {
+                        const expansionZoom = Math.min(
+                          clusterIndex.getClusterExpansionZoom(cluster_id),
+                          20
+                        );
+                        
+                        setViewState({
+                          ...viewState,
+                          latitude,
+                          longitude,
+                          zoom: expansionZoom,
+                        });
+                      }
+                    }}
+                  >
+                    <div className="cursor-pointer transform transition-all hover:scale-110">
+                      <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold shadow-lg border-2 border-white">
+                        {point_count}
+                      </div>
+                    </div>
+                  </Marker>
+                );
+              } else {
+                // This is an individual property
+                const property = cluster.properties.propertyData;
+                
+                return (
+                  <Marker
+                    key={property.id}
+                    latitude={latitude}
+                    longitude={longitude}
+                    anchor="bottom"
+                    onClick={(e) => {
+                      e.originalEvent.stopPropagation();
+                      setSelectedProperty(property);
+                    }}
                   >
                     <div
                       className={`
-                        px-3 py-1.5 rounded-full font-semibold text-sm shadow-lg
-                        ${selectedProperty?.id === property.id
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-card text-foreground border border-border'
-                        }
+                        cursor-pointer transition-all transform
+                        ${selectedProperty?.id === property.id ? 'scale-125 z-10' : 'hover:scale-110'}
                       `}
                     >
-                      {formatPrice(property.rent)}
+                      <div
+                        className={`
+                          px-3 py-1.5 rounded-full font-semibold text-sm shadow-lg
+                          ${selectedProperty?.id === property.id
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-card text-foreground border border-border'
+                          }
+                        `}
+                      >
+                        {formatPrice(property.rent)}
+                      </div>
+                      <div
+                        className={`
+                          w-3 h-3 rotate-45 mx-auto -mt-1.5 
+                          ${selectedProperty?.id === property.id
+                            ? 'bg-primary'
+                            : 'bg-card border-l border-b border-border'
+                          }
+                        `}
+                      />
                     </div>
-                    <div
-                      className={`
-                        w-3 h-3 rotate-45 mx-auto -mt-1.5 
-                        ${selectedProperty?.id === property.id
-                          ? 'bg-primary'
-                          : 'bg-card border-l border-b border-border'
-                        }
-                      `}
-                    />
-                  </div>
-                </Marker>
-              );
+                  </Marker>
+                );
+              }
             })}
 
             {selectedProperty && (
@@ -224,9 +291,17 @@ const MapView = () => {
 
           {/* Map Legend */}
           <div className="absolute bottom-4 left-4 bg-card/95 backdrop-blur rounded-xl p-3 shadow-lg border border-border">
-            <div className="flex items-center gap-2 text-sm">
-              <div className="w-4 h-4 rounded-full bg-primary" />
-              <span>Selected Property</span>
+            <div className="flex flex-col gap-2 text-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded-full bg-primary" />
+                <span>Selected Property</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-xs text-white">
+                  2+
+                </div>
+                <span>Property Cluster</span>
+              </div>
             </div>
           </div>
         </div>

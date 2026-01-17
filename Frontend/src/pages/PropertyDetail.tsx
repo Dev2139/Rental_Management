@@ -14,7 +14,9 @@ import {
   Check,
   MessageSquare,
   CreditCard,
+  Pencil,
 } from 'lucide-react';
+
 import Layout from '@/components/layout/Layout';
 import { useProperty } from '@/hooks/useProperties';
 import { useCreateRentalRequest } from '@/hooks/useRentalRequests';
@@ -40,6 +42,8 @@ const PropertyDetail = () => {
   const { data: property, isLoading } = useProperty(id || '');
   const { user, role } = useAuth();
   const createRequest = useCreateRentalRequest();
+  
+  const isOwner = user && user.id === property?.owner_id;
   
   const [selectedImage, setSelectedImage] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
@@ -172,6 +176,15 @@ const PropertyDetail = () => {
                   )}
                 </div>
                 <div className="absolute top-4 right-4 flex gap-2">
+                  {isOwner && (
+                    <button
+                      onClick={() => navigate(`/owner/dashboard#${property.id}`)}
+                      className="w-10 h-10 rounded-full bg-card/90 backdrop-blur flex items-center justify-center"
+                      title="Edit Property"
+                    >
+                      <Pencil className="w-5 h-5" />
+                    </button>
+                  )}
                   <button
                     onClick={() => setIsLiked(!isLiked)}
                     className="w-10 h-10 rounded-full bg-card/90 backdrop-blur flex items-center justify-center"

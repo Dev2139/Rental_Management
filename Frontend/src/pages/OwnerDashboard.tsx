@@ -1,9 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Home, Users, DollarSign, TrendingUp } from 'lucide-react';
 import Layout from '@/components/layout/Layout';
 import { useAuth } from '@/contexts/AuthContext';
-import { useOwnerProperties, useCreateProperty } from '@/hooks/useProperties';
+import { useOwnerProperties, useCreateProperty, useUpdateProperty, useDeleteProperty } from '@/hooks/useProperties';
 import { useOwnerRequests, useUpdateRequestStatus } from '@/hooks/useRentalRequests';
 import { useUserPayments } from '@/hooks/usePayments';
 import { useImageUpload } from '@/hooks/useImageUpload';
@@ -28,10 +28,35 @@ const OwnerDashboard = () => {
   const { data: requests } = useOwnerRequests();
   const { data: payments } = useUserPayments();
   const createProperty = useCreateProperty();
+  const updateProperty = useUpdateProperty();
+  const deleteProperty = useDeleteProperty();
   const updateRequest = useUpdateRequestStatus();
   const { uploading, uploadedUrls, uploadImages, removeImage, clearImages } = useImageUpload();
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingProperty, setEditingProperty] = useState<any>(null);
+  
+  // Handle URL hash to auto-open edit dialog for specific property
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (hash && properties) {
+      const propertyId = hash.substring(1); // Remove # from hash
+      const property = properties.find(p => p.id === propertyId);
+      if (property) {
+        openEditDialog(property);
+        // Scroll to the property card
+        setTimeout(() => {
+          const element = document.getElementById(`property-${propertyId}`);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            element.classList.add('ring-2', 'ring-primary');
+            setTimeout(() => element.classList.remove('ring-2', 'ring-primary'), 2000);
+          }
+        }, 100);
+      }
+    }
+  }, [properties]);
   const [newProperty, setNewProperty] = useState({
     title: '', description: '', property_type: '2bhk' as PropertyType, rent: '', deposit: '',
     address: '', city: '', state: '', latitude: '19.0760', longitude: '72.8777',
@@ -62,6 +87,45 @@ const OwnerDashboard = () => {
     setIsCreateOpen(false);
     clearImages();
     setNewProperty({ title: '', description: '', property_type: '2bhk', rent: '', deposit: '', address: '', city: '', state: '', latitude: '19.0760', longitude: '72.8777', bedrooms: '2', bathrooms: '1', area_sqft: '', amenities: '', rules: '' });
+  };
+  
+  const handleEditProperty = async () => {
+    if (!editingProperty) return;
+    
+    await updateProperty.mutateAsync({
+      id: editingProperty.id,
+      title: editingProperty.title,
+      description: editingProperty.description,
+      property_type: editingProperty.property_type,
+      rent: Number(editingProperty.rent),
+      deposit: Number(editingProperty.deposit),
+      address: editingProperty.address,
+      city: editingProperty.city,
+      state: editingProperty.state || null,
+      latitude: Number(editingProperty.latitude),
+      longitude: Number(editingProperty.longitude),
+      bedrooms: Number(editingProperty.bedrooms),
+      bathrooms: Number(editingProperty.bathrooms),
+      area_sqft: editingProperty.area_sqft ? Number(editingProperty.area_sqft) : null,
+      amenities: editingProperty.amenities ? editingProperty.amenities.split(',').map(a => a.trim()) : null,
+      rules: editingProperty.rules || null,
+      is_available: editingProperty.is_available,
+    });
+    setIsEditOpen(false);
+    setEditingProperty(null);
+  };
+  
+  const openEditDialog = (property: any) => {
+    setEditingProperty({
+      ...property,
+      rent: String(property.rent),
+      deposit: String(property.deposit),
+      bedrooms: String(property.bedrooms),
+      bathrooms: String(property.bathrooms),
+      area_sqft: property.area_sqft ? String(property.area_sqft) : '',
+      amenities: property.amenities ? property.amenities.join(', ') : '',
+    });
+    setIsEditOpen(true);
   };
 
   const pendingRequests = requests?.filter(r => r.status === 'pending') || [];
@@ -118,6 +182,78 @@ const OwnerDashboard = () => {
               </div>
             </DialogContent>
           </Dialog>
+          
+          {/* Edit Property Dialog */}
+          <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader><DialogTitle>Edit Property</DialogTitle></DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2"><Label>Title</Label><Input value={editingProperty?.title || ''} onChange={(e) => setEditingProperty({...editingProperty, title: e.target.value})} placeholder="Modern 2BHK Apartment" /></div>
+                  <div className="space-y-2">
+                    <Label>Type</Label>
+                    <Select value={editingProperty?.property_type || '2bhk'} onValueChange={(v) => setEditingProperty({...editingProperty, property_type: v as PropertyType})}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1bhk">1 BHK</SelectItem>
+                        <SelectItem value="2bhk">2 BHK</SelectItem>
+                        <SelectItem value="3bhk">3 BHK</SelectItem>
+                        <SelectItem value="studio">Studio</SelectItem>
+                        <SelectItem value="pg">PG</SelectItem>
+                        <SelectItem value="villa">Villa</SelectItem>
+                        <SelectItem value="apartment">Apartment</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2"><Label>Description</Label><Textarea value={editingProperty?.description || ''} onChange={(e) => setEditingProperty({...editingProperty, description: e.target.value})} placeholder="Describe your property..." rows={3} /></div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2"><Label>Monthly Rent ($)</Label><Input type="number" value={editingProperty?.rent || ''} onChange={(e) => setEditingProperty({...editingProperty, rent: e.target.value})} placeholder="2500" /></div>
+                  <div className="space-y-2"><Label>Security Deposit ($)</Label><Input type="number" value={editingProperty?.deposit || ''} onChange={(e) => setEditingProperty({...editingProperty, deposit: e.target.value})} placeholder="5000" /></div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2"><Label>Address</Label><Input value={editingProperty?.address || ''} onChange={(e) => setEditingProperty({...editingProperty, address: e.target.value})} placeholder="123 Main St" /></div>
+                  <div className="space-y-2"><Label>City</Label><Input value={editingProperty?.city || ''} onChange={(e) => setEditingProperty({...editingProperty, city: e.target.value})} placeholder="San Francisco" /></div>
+                  <div className="space-y-2"><Label>State</Label><Input value={editingProperty?.state || ''} onChange={(e) => setEditingProperty({...editingProperty, state: e.target.value})} placeholder="CA" /></div>
+                </div>
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="space-y-2"><Label>Bedrooms</Label><Input type="number" value={editingProperty?.bedrooms || ''} onChange={(e) => setEditingProperty({...editingProperty, bedrooms: e.target.value})} /></div>
+                  <div className="space-y-2"><Label>Bathrooms</Label><Input type="number" value={editingProperty?.bathrooms || ''} onChange={(e) => setEditingProperty({...editingProperty, bathrooms: e.target.value})} /></div>
+                  <div className="space-y-2"><Label>Area (sqft)</Label><Input type="number" value={editingProperty?.area_sqft || ''} onChange={(e) => setEditingProperty({...editingProperty, area_sqft: e.target.value})} /></div>
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select value={editingProperty?.is_available ? 'available' : 'unavailable'} onValueChange={(v) => setEditingProperty({...editingProperty, is_available: v === 'available'})}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="available">Available</SelectItem>
+                        <SelectItem value="unavailable">Not Available</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Amenities (comma separated)</Label>
+                  <Input 
+                    value={editingProperty?.amenities || ''} 
+                    onChange={(e) => setEditingProperty({...editingProperty, amenities: e.target.value})} 
+                    placeholder="WiFi, Parking, Pool, Gym" 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Rules</Label>
+                  <Textarea 
+                    value={editingProperty?.rules || ''} 
+                    onChange={(e) => setEditingProperty({...editingProperty, rules: e.target.value})} 
+                    placeholder="No pets, No smoking, etc." 
+                    rows={2}
+                  />
+                </div>
+                <Button className="btn-primary w-full" onClick={handleEditProperty} disabled={updateProperty.isPending}>
+                  {updateProperty.isPending ? 'Updating...' : 'Save Changes'}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Stats */}
@@ -136,7 +272,37 @@ const OwnerDashboard = () => {
           
           <TabsContent value="properties" className="mt-6">
             {properties && properties.length > 0 ? (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">{properties.map((p) => <PropertyCard key={p.id} property={p} />)}</div>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {properties.map((p) => (
+                  <div key={p.id} id={`property-${p.id}`} className="relative group">
+                    <PropertyCard property={p} />
+                    <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="h-8 w-8 p-0"
+                        onClick={() => openEditDialog(p)}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-edit">
+                          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                        </svg>
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="h-8 w-8 p-0 text-red-500 border-red-500 hover:bg-red-50"
+                        onClick={() => deleteProperty.mutate(p.id)}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-trash-2">
+                          <path d="M3 6h18" />
+                          <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                          <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                        </svg>
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (<div className="text-center py-12 bg-muted/30 rounded-2xl"><Home className="w-12 h-12 text-muted-foreground mx-auto mb-4" /><p className="text-muted-foreground">No properties yet. Add your first listing!</p></div>)}
           </TabsContent>
           
