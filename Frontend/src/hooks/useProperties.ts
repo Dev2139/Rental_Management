@@ -31,12 +31,25 @@ export interface Property {
   updated_at: string;
 }
 
-export const useProperties = (filters?: {
+// Interface for property filters
+interface PropertyFilters {
   city?: string;
   minRent?: number;
   maxRent?: number;
   propertyType?: string;
-}) => {
+  minBedrooms?: number;
+  maxBedrooms?: number;
+  minBathrooms?: number;
+  maxBathrooms?: number;
+  amenities?: string[];
+  // Note: Boolean filters (petFriendly, isFurnished, nearTransport) are not yet implemented
+  // as the database columns need to be added first
+  petFriendly?: boolean;
+  isFurnished?: boolean;
+  nearTransport?: boolean;
+}
+
+export const useProperties = (filters?: Partial<PropertyFilters>) => {
   return useQuery({
     queryKey: ['properties', filters],
     queryFn: async () => {
@@ -58,7 +71,23 @@ export const useProperties = (filters?: {
       if (filters?.propertyType) {
         query = query.eq('property_type', filters.propertyType as PropertyType);
       }
-
+      if (filters?.minBedrooms) {
+        query = query.gte('bedrooms', filters.minBedrooms);
+      }
+      if (filters?.maxBedrooms) {
+        query = query.lte('bedrooms', filters.maxBedrooms);
+      }
+      if (filters?.minBathrooms) {
+        query = query.gte('bathrooms', filters.minBathrooms);
+      }
+      if (filters?.maxBathrooms) {
+        query = query.lte('bathrooms', filters.maxBathrooms);
+      }
+      if (filters?.amenities && filters.amenities.length > 0) {
+        // Filter by amenities - at least one of the selected amenities must be present
+        query = query.overlaps('amenities', filters.amenities);
+      }
+      
       const { data, error } = await query;
       if (error) throw error;
       return data as Property[];

@@ -12,6 +12,7 @@ import MapView from "./pages/MapView";
 import PropertyDetail from "./pages/PropertyDetail";
 import OwnerDashboard from "./pages/OwnerDashboard";
 import TenantDashboard from "./pages/TenantDashboard";
+import Wishlist from "./pages/Wishlist";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,6 +33,7 @@ const App = () => (
               <Route path="/property/:id" element={<PropertyDetail />} />
               <Route path="/owner/dashboard" element={<OwnerDashboard />} />
               <Route path="/tenant/dashboard" element={<TenantDashboard />} />
+              <Route path="/wishlist" element={<Wishlist />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

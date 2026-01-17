@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom';
-import { MapPin, Bed, Bath, Square, Shield, Heart } from 'lucide-react';
+import { MapPin, Bed, Bath, Square, Shield } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { Property } from '@/hooks/useProperties';
 import { Badge } from '@/components/ui/badge';
 import { useState } from 'react';
+import FavoriteButton from '@/components/ui/favorite-button';
 
 interface PropertyCardProps {
   property: Property;
@@ -11,7 +12,6 @@ interface PropertyCardProps {
 }
 
 const PropertyCard = ({ property, compact = false }: PropertyCardProps) => {
-  const [isLiked, setIsLiked] = useState(false);
   const [imageError, setImageError] = useState(false);
 
   const formatPrice = (price: number) => {
@@ -90,18 +90,12 @@ const PropertyCard = ({ property, compact = false }: PropertyCardProps) => {
             )}
           </div>
 
-          {/* Like button */}
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              setIsLiked(!isLiked);
-            }}
-            className="absolute top-3 right-3 w-9 h-9 rounded-full bg-card/90 backdrop-blur flex items-center justify-center hover:bg-card transition-colors"
-          >
-            <Heart
-              className={`w-5 h-5 ${isLiked ? 'fill-red-500 text-red-500' : 'text-muted-foreground'}`}
-            />
-          </button>
+          {/* Favorite button */}
+          <FavoriteButton
+            propertyId={property.id}
+            size="sm"
+            className="absolute top-3 right-3"
+          />
 
           {/* Price tag */}
           <div className="absolute bottom-3 left-3 bg-card/95 backdrop-blur px-3 py-1.5 rounded-lg">

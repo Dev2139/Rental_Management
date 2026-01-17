@@ -1,6 +1,6 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Home, Menu, X, LogOut, User, LayoutDashboard, Bell } from 'lucide-react';
+import { Home, Menu, X, LogOut, User, LayoutDashboard, Bell, Heart } from 'lucide-react';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotification } from '@/contexts/NotificationContext';
@@ -103,6 +103,12 @@ const Header = () => {
                         Dashboard
                       </Link>
                     </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link to="/wishlist" className="flex items-center gap-2">
+                        <Heart className="w-4 h-4" />
+                        Wishlist
+                      </Link>
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
                       <LogOut className="w-4 h-4 mr-2" />
@@ -171,6 +177,13 @@ const Header = () => {
                   onClick={() => setIsMenuOpen(false)}
                 >
                   Dashboard
+                </Link>
+                <Link
+                  to="/wishlist"
+                  className="nav-link py-2"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  Wishlist
                 </Link>
                 <button
                   onClick={() => {

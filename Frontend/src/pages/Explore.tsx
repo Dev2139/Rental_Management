@@ -7,6 +7,8 @@ import PropertyCard from '@/components/properties/PropertyCard';
 import { useProperties } from '@/hooks/useProperties';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -42,12 +44,28 @@ const Explore = () => {
     minRent: '',
     maxRent: '',
     propertyType: 'all',
+    minBedrooms: '',
+    maxBedrooms: '',
+    minBathrooms: '',
+    maxBathrooms: '',
+    amenities: [] as string[],
+    petFriendly: false,
+    isFurnished: false,
+    nearTransport: false,
   });
   const [appliedFilters, setAppliedFilters] = useState({
     city: searchParams.get('city') || undefined,
     minRent: undefined as number | undefined,
     maxRent: undefined as number | undefined,
     propertyType: undefined as string | undefined,
+    minBedrooms: undefined as number | undefined,
+    maxBedrooms: undefined as number | undefined,
+    minBathrooms: undefined as number | undefined,
+    maxBathrooms: undefined as number | undefined,
+    amenities: undefined as string[] | undefined,
+    petFriendly: undefined as boolean | undefined,
+    isFurnished: undefined as boolean | undefined,
+    nearTransport: undefined as boolean | undefined,
   });
 
   const { data: properties, isLoading } = useProperties(appliedFilters);
@@ -66,6 +84,14 @@ const Explore = () => {
       minRent: filters.minRent ? Number(filters.minRent) : undefined,
       maxRent: filters.maxRent ? Number(filters.maxRent) : undefined,
       propertyType: filters.propertyType === 'all' ? undefined : filters.propertyType,
+      minBedrooms: filters.minBedrooms ? Number(filters.minBedrooms) : undefined,
+      maxBedrooms: filters.maxBedrooms ? Number(filters.maxBedrooms) : undefined,
+      minBathrooms: filters.minBathrooms ? Number(filters.minBathrooms) : undefined,
+      maxBathrooms: filters.maxBathrooms ? Number(filters.maxBathrooms) : undefined,
+      amenities: filters.amenities.length > 0 ? filters.amenities : undefined,
+      petFriendly: filters.petFriendly || undefined,
+      isFurnished: filters.isFurnished || undefined,
+      nearTransport: filters.nearTransport || undefined,
     });
   };
 
@@ -75,17 +101,33 @@ const Explore = () => {
       minRent: '',
       maxRent: '',
       propertyType: 'all',
+      minBedrooms: '',
+      maxBedrooms: '',
+      minBathrooms: '',
+      maxBathrooms: '',
+      amenities: [],
+      petFriendly: false,
+      isFurnished: false,
+      nearTransport: false,
     });
     setAppliedFilters({
       city: undefined,
       minRent: undefined,
       maxRent: undefined,
       propertyType: undefined,
+      minBedrooms: undefined,
+      maxBedrooms: undefined,
+      minBathrooms: undefined,
+      maxBathrooms: undefined,
+      amenities: undefined,
+      petFriendly: undefined,
+      isFurnished: undefined,
+      nearTransport: undefined,
     });
     setSearchParams({});
   };
 
-  const hasActiveFilters = appliedFilters.city || appliedFilters.minRent || appliedFilters.maxRent || appliedFilters.propertyType;
+  const hasActiveFilters = appliedFilters.city || appliedFilters.minRent || appliedFilters.maxRent || appliedFilters.propertyType || appliedFilters.minBedrooms || appliedFilters.maxBedrooms || appliedFilters.minBathrooms || appliedFilters.maxBathrooms || appliedFilters.amenities || appliedFilters.petFriendly || appliedFilters.isFurnished || appliedFilters.nearTransport;
 
   const FilterContent = () => (
     <div className="space-y-6">
@@ -125,6 +167,52 @@ const Explore = () => {
         </div>
       </div>
 
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Min Bedrooms</Label>
+          <Input
+            type="number"
+            placeholder="0"
+            value={filters.minBedrooms}
+            onChange={(e) => setFilters({ ...filters, minBedrooms: e.target.value })}
+            className="input-styled"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Max Bedrooms</Label>
+          <Input
+            type="number"
+            placeholder="10"
+            value={filters.maxBedrooms}
+            onChange={(e) => setFilters({ ...filters, maxBedrooms: e.target.value })}
+            className="input-styled"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Min Bathrooms</Label>
+          <Input
+            type="number"
+            placeholder="0"
+            value={filters.minBathrooms}
+            onChange={(e) => setFilters({ ...filters, minBathrooms: e.target.value })}
+            className="input-styled"
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Max Bathrooms</Label>
+          <Input
+            type="number"
+            placeholder="10"
+            value={filters.maxBathrooms}
+            onChange={(e) => setFilters({ ...filters, maxBathrooms: e.target.value })}
+            className="input-styled"
+          />
+        </div>
+      </div>
+
       <div className="space-y-2">
         <Label>Property Type</Label>
         <Select
@@ -142,6 +230,81 @@ const Explore = () => {
             ))}
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="space-y-4">
+        <Label>Amenities</Label>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { id: 'wifi', label: 'Wi-Fi' },
+            { id: 'parking', label: 'Parking' },
+            { id: 'gym', label: 'Gym' },
+            { id: 'pool', label: 'Swimming Pool' },
+            { id: 'ac', label: 'Air Conditioning' },
+            { id: 'furnished', label: 'Furnished' },
+            { id: 'balcony', label: 'Balcony' },
+            { id: 'petFriendly', label: 'Pet Friendly' },
+          ].map((amenity) => (
+            <div key={amenity.id} className="flex items-center space-x-2">
+              <Checkbox
+                id={amenity.id}
+                checked={filters.amenities.includes(amenity.id)}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setFilters({
+                      ...filters,
+                      amenities: [...filters.amenities, amenity.id],
+                    });
+                  } else {
+                    setFilters({
+                      ...filters,
+                      amenities: filters.amenities.filter(a => a !== amenity.id),
+                    });
+                  }
+                }}
+              />
+              <Label htmlFor={amenity.id} className="text-sm font-normal">
+                {amenity.label}
+              </Label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <Label>Special Features</Label>
+        <div className="grid grid-cols-1 gap-2">
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="petFriendly"
+              checked={filters.petFriendly}
+              onCheckedChange={(checked) => setFilters({ ...filters, petFriendly: Boolean(checked) })}
+            />
+            <Label htmlFor="petFriendly" className="text-sm font-normal">
+              Pet Friendly
+            </Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="furnished"
+              checked={filters.isFurnished}
+              onCheckedChange={(checked) => setFilters({ ...filters, isFurnished: Boolean(checked) })}
+            />
+            <Label htmlFor="furnished" className="text-sm font-normal">
+              Furnished
+            </Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="nearTransport"
+              checked={filters.nearTransport}
+              onCheckedChange={(checked) => setFilters({ ...filters, nearTransport: Boolean(checked) })}
+            />
+            <Label htmlFor="nearTransport" className="text-sm font-normal">
+              Near Public Transport
+            </Label>
+          </div>
+        </div>
       </div>
 
       <div className="flex gap-3 pt-4">
