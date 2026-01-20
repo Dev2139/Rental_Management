@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useNotification } from '@/contexts/NotificationContext';
+import { usePropertyStatusContext } from '@/contexts/PropertyStatusContext';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft,
@@ -36,16 +37,19 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import SharePropertyButton from '@/components/properties/SharePropertyButton';
 
 const PropertyDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: property, isLoading } = useProperty(id || '');
   const { user, role } = useAuth();
+  const { getStatus } = usePropertyStatusContext();
   const createRequest = useCreateRentalRequest();
   const { addNotification } = useNotification();
   
   const isOwner = user && user.id === property?.owner_id;
+  const status = property ? getStatus(property.id) : 'available';
   
   const [selectedImage, setSelectedImage] = useState(0);
   const [isLiked, setIsLiked] = useState(false);
@@ -72,6 +76,15 @@ const PropertyDetail = () => {
       'apartment': 'Apartment',
     };
     return types[type] || type;
+  };
+
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      available: { label: 'Available', className: 'bg-green-500/10 text-green-500 border-green-500/20' },
+      rented: { label: 'Rented', className: 'bg-red-500/10 text-red-500 border-red-500/20' },
+      under_maintenance: { label: 'Under Maintenance', className: 'bg-orange-500/10 text-orange-500 border-orange-500/20' },
+    };
+    return statusConfig[status as keyof typeof statusConfig] || statusConfig.available;
   };
 
   const handleSendRequest = async () => {
@@ -176,7 +189,7 @@ const PropertyDetail = () => {
                   alt={property.title}
                   className="w-full h-full object-cover"
                 />
-                <div className="absolute top-4 left-4 flex gap-2">
+                <div className="absolute top-4 left-4 flex flex-wrap gap-2">
                   <Badge className="bg-card/90 backdrop-blur text-foreground border-0">
                     {formatPropertyType(property.property_type)}
                   </Badge>
@@ -186,6 +199,9 @@ const PropertyDetail = () => {
                       Verified
                     </Badge>
                   )}
+                  <Badge className={getStatusBadge(status).className}>
+                    {getStatusBadge(status).label}
+                  </Badge>
                 </div>
                 <div className="absolute top-4 right-4 flex gap-2">
                   {isOwner && (
@@ -203,9 +219,11 @@ const PropertyDetail = () => {
                   >
                     <Heart className={`w-5 h-5 ${isLiked ? 'fill-red-500 text-red-500' : ''}`} />
                   </button>
-                  <button className="w-10 h-10 rounded-full bg-card/90 backdrop-blur flex items-center justify-center">
-                    <Share2 className="w-5 h-5" />
-                  </button>
+                  <SharePropertyButton 
+                    propertyId={property.id}
+                    propertyTitle={property.title}
+                    propertyImage={images[0]}
+                  />
                 </div>
               </div>
 

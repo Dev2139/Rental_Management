@@ -5,6 +5,7 @@ import type { Property } from '@/hooks/useProperties';
 import { Badge } from '@/components/ui/badge';
 import { useState } from 'react';
 import FavoriteButton from '@/components/ui/favorite-button';
+import { usePropertyStatusContext } from '@/contexts/PropertyStatusContext';
 
 interface PropertyCardProps {
   property: Property;
@@ -13,6 +14,8 @@ interface PropertyCardProps {
 
 const PropertyCard = ({ property, compact = false }: PropertyCardProps) => {
   const [imageError, setImageError] = useState(false);
+  const { getStatus } = usePropertyStatusContext();
+  const status = getStatus(property.id);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('en-US', {
@@ -33,6 +36,15 @@ const PropertyCard = ({ property, compact = false }: PropertyCardProps) => {
       'apartment': 'Apartment',
     };
     return types[type] || type;
+  };
+
+  const getStatusBadge = (status: string) => {
+    const statusConfig = {
+      available: { label: 'Available', className: 'bg-green-500/10 text-green-500 border-green-500/20' },
+      rented: { label: 'Rented', className: 'bg-red-500/10 text-red-500 border-red-500/20' },
+      under_maintenance: { label: 'Maintenance', className: 'bg-orange-500/10 text-orange-500 border-orange-500/20' },
+    };
+    return statusConfig[status as keyof typeof statusConfig] || statusConfig.available;
   };
 
   const defaultImage = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&h=600&fit=crop';
@@ -78,7 +90,7 @@ const PropertyCard = ({ property, compact = false }: PropertyCardProps) => {
           />
           
           {/* Overlay badges */}
-          <div className="absolute top-3 left-3 flex gap-2">
+          <div className="absolute top-3 left-3 flex flex-wrap gap-2">
             <Badge className="bg-card/90 backdrop-blur text-foreground border-0">
               {formatPropertyType(property.property_type)}
             </Badge>
@@ -88,6 +100,9 @@ const PropertyCard = ({ property, compact = false }: PropertyCardProps) => {
                 Verified
               </Badge>
             )}
+            <Badge className={getStatusBadge(status).className}>
+              {getStatusBadge(status).label}
+            </Badge>
           </div>
 
           {/* Favorite button */}

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNotification } from '@/contexts/NotificationContext';
+import { usePropertyStatusContext } from '@/contexts/PropertyStatusContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -32,6 +33,7 @@ const OwnerDashboard = () => {
   const { data: properties, isLoading: propertiesLoading } = useOwnerProperties();
   const { data: requests } = useOwnerRequests();
   const { data: payments } = useUserPayments();
+  const { getStatus, setStatus } = usePropertyStatusContext();
   const createProperty = useCreateProperty();
   const updateProperty = useUpdateProperty();
   const deleteProperty = useDeleteProperty();
@@ -166,6 +168,12 @@ const OwnerDashboard = () => {
       rules: editingProperty.rules || null,
       is_available: editingProperty.is_available,
     });
+    
+    // Save status to context/localStorage
+    if (editingProperty.status) {
+      setStatus(editingProperty.id, editingProperty.status);
+    }
+    
     setIsEditOpen(false);
     setEditingProperty(null);
   };
@@ -345,11 +353,12 @@ const OwnerDashboard = () => {
                   <div className="space-y-2"><Label>Area (sqft)</Label><Input type="number" value={editingProperty?.area_sqft || ''} onChange={(e) => setEditingProperty({...editingProperty, area_sqft: e.target.value})} /></div>
                   <div className="space-y-2">
                     <Label>Status</Label>
-                    <Select value={editingProperty?.is_available ? 'available' : 'unavailable'} onValueChange={(v) => setEditingProperty({...editingProperty, is_available: v === 'available'})}>
+                    <Select value={editingProperty?.status || 'available'} onValueChange={(v) => setEditingProperty({...editingProperty, status: v as 'available' | 'rented' | 'under_maintenance'})}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="available">Available</SelectItem>
-                        <SelectItem value="unavailable">Not Available</SelectItem>
+                        <SelectItem value="rented">Rented</SelectItem>
+                        <SelectItem value="under_maintenance">Under Maintenance</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
