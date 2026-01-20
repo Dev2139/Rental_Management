@@ -1,7 +1,71 @@
 import { Link } from 'react-router-dom';
 import { Home, Mail, Phone, MapPin } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 
-const Footer = () => {
+const Footer = ({ isLoading = false }: { isLoading?: boolean }) => {
+  if (isLoading) {
+    return (
+      <footer className="bg-card border-t border-border mt-auto">
+        <div className="container mx-auto px-4 py-12">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+            {/* Brand Skeleton */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Skeleton className="w-9 h-9 rounded-xl" />
+                <Skeleton className="h-6 w-32" />
+              </div>
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+            </div>
+
+            {/* Quick Links Skeleton */}
+            <div>
+              <Skeleton className="h-6 w-24 mb-4" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-36" />
+              </div>
+            </div>
+
+            {/* For Renters Skeleton */}
+            <div>
+              <Skeleton className="h-6 w-24 mb-4" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+            </div>
+
+            {/* Contact Skeleton */}
+            <div>
+              <Skeleton className="h-6 w-20 mb-4" />
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="w-4 h-4 rounded" />
+                  <Skeleton className="h-4 w-48" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Skeleton className="w-4 h-4 rounded" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Skeleton className="w-4 h-4 rounded" />
+                  <Skeleton className="h-4 w-40" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-border mt-8 pt-8 text-center">
+            <Skeleton className="h-4 w-64 mx-auto" />
+          </div>
+        </div>
+      </footer>
+    );
+  }
+
   return (
     <footer className="bg-card border-t border-border mt-auto">
       <div className="container mx-auto px-4 py-12">
@@ -65,15 +129,15 @@ const Footer = () => {
             <ul className="space-y-3 text-sm">
               <li className="flex items-center gap-2 text-muted-foreground">
                 <Mail className="w-4 h-4" />
-                support@homenest.com
+                dev.patel.codinggita@gmail.com
               </li>
               <li className="flex items-center gap-2 text-muted-foreground">
                 <Phone className="w-4 h-4" />
-                +1 (555) 123-4567
+                +91 63542361905
               </li>
               <li className="flex items-center gap-2 text-muted-foreground">
                 <MapPin className="w-4 h-4" />
-                San Francisco, CA
+                Ahemedabad, Gujarat.
               </li>
             </ul>
           </div>
